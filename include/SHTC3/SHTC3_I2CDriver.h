@@ -47,7 +47,7 @@ enum class Command : uint16_t {
   kNoCommand = 0x0000,
 };
 const constexpr uint8_t kSlaveAddress = 0x70;
-const constexpr uint8_t kSlaveRead = I2c::MakeSlaveReadAddress(kSlaveAddress);
+const constexpr uint8_t kSlaveRead = I2C::MakeSlaveReadAddress(kSlaveAddress);
 const constexpr uint8_t kSlaveWrite = I2C::MakeSlaveWriteAddress(kSlaveAddress);
 static_assert(kSlaveRead == (0x70 << 1) + 1);
 static_assert(kSlaveWrite == (0x70 << 1));
