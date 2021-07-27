@@ -12,45 +12,6 @@
 #include <cstdint>
 
 namespace SHTC3 {
-enum class MeasurementType : uint16_t {
-  kNormalClockStretchTFirst = 0x7CA2,
-  kNormalClockStretchRHFirst = 0x5C24,
-  kLowPowerClockStretchTFirst = 0x6458,
-  kLowPowerClockStretchRHFirst = 0x44de,
-  kNormalNoClockStretchTFirst = 0x7866,
-  kNormalNoClockStretchRHFirst = 0x58e0,
-  kLowPowerNoClockStretchTFirst = 0x609c,
-  kLowPowerNoClockStretchRHFirst = 0x401a,
-};
-enum class Command : uint16_t {
-  kSoftwareReset = 0x805D,
-  kReadId = 0xefc8,
-  kSleep = 0xB098,
-  kWakeup = 0x3517,
-  kMeasurementNormalClockStretchTFirst =
-      static_cast<uint16_t>(MeasurementType::kNormalClockStretchTFirst),
-  kMeasurementNormalClockStretchRHFirst =
-      static_cast<uint16_t>(MeasurementType::kNormalClockStretchRHFirst),
-  kMeasurementLowPowerClockStretchTFirst =
-      static_cast<uint16_t>(MeasurementType::kLowPowerClockStretchTFirst),
-  kMeasurementLowPowerClockStretchRHFirst =
-      static_cast<uint16_t>(MeasurementType::kLowPowerClockStretchRHFirst),
-
-  kMeasurementNormalNoClockStretchTFirst =
-      static_cast<uint16_t>(MeasurementType::kNormalNoClockStretchTFirst),
-  kMeasurementNormalNoClockStretchRHFirst =
-      static_cast<uint16_t>(MeasurementType::kNormalNoClockStretchRHFirst),
-  kMeasurementLowPowerNoClockStretchTFirst =
-      static_cast<uint16_t>(MeasurementType::kLowPowerNoClockStretchTFirst),
-  kMeasurementLowPowerNoClockStretchRHFirst =
-      static_cast<uint16_t>(MeasurementType::kLowPowerNoClockStretchRHFirst),
-  kNoCommand = 0x0000,
-};
-const constexpr uint8_t kSlaveAddress = 0x70;
-const constexpr uint8_t kSlaveRead = I2C::MakeSlaveReadAddress(kSlaveAddress);
-const constexpr uint8_t kSlaveWrite = I2C::MakeSlaveWriteAddress(kSlaveAddress);
-static_assert(kSlaveRead == (0x70 << 1) + 1);
-static_assert(kSlaveWrite == (0x70 << 1));
 
 inline constexpr uint8_t crc8(const uint8_t *const buffer,
                               const std::size_t data_length) {
@@ -63,12 +24,24 @@ static_assert(crc8(std::array<uint8_t, 1>{0x00}.data(), 1) == 0xAC);
 static_assert(crc8(std::array<uint8_t, 2>{101, 228}.data(), 2) == 166);
 static_assert(crc8(std::array<uint8_t, 2>{63, 203}.data(), 2) == 7);
 
+static const constexpr std::size_t kNumberOfAdcBits = 16;
+static const constexpr std::size_t kMaxAdcValue = (1<<kNumberOfAdcBits) - 1;
+
+template<typename type_t>
+static type_t calculate_humidity(const int32_t reading) {
+	return (type_t{100} * static_cast<type_t>(reading)) / static_cast<type_t>(kMaxAdcValue);
+}
+template<typename type_t>
+static type_t calculate_temperature(const int32_t reading) {
+	return type_t{-45} + (type_t{175} * static_cast<type_t>(reading)) / static_cast<type_t>(kMaxAdcValue);
+}
+
+
 class Calculator {
-  static const constexpr std::size_t kNumberOfAdcBits = 16;
-  static const constexpr std::size_t kMaxAdcValue = (1<<kNumberOfAdcBits) - 1;
   static const constexpr int32_t kMicroConversionFactor = static_cast<int32_t>(1e6);
 
  public:
+#if 0
   static int32_t
   ConvertHumidityReadingToMicroPercent(const int32_t humidity_reading) {
 	const constexpr auto conversion_factor = static_cast<int32_t>(Utilities::round(100 * static_cast<double>(kMicroConversionFactor) / static_cast<double>(kMaxAdcValue)));
@@ -81,8 +54,8 @@ class Calculator {
 	static_assert(conversion_factor == 2670);
 	return -45 * kMicroConversionFactor + conversion_factor * temp_reading;
   }
+#endif
 };
-
 class Sensor : public I2CDeviceBase {
   /*
    * Sensiron
@@ -94,6 +67,14 @@ class Sensor : public I2CDeviceBase {
    * Reads after a measurement command are data a1, data b1, crc, data a2, data
    * b2, crc MSB Data
    * */
+  static const constexpr uint8_t kSlaveAddress = 0x70;
+  static const constexpr uint8_t kSlaveRead =
+      MakeI2CSlaveReadAddress(kSlaveAddress);
+  static const constexpr uint8_t kSlaveWrite =
+      MakeI2CSlaveWriteAddress(kSlaveAddress);
+  static_assert(kSlaveRead == (0x70 << 1) + 1);
+  static_assert(kSlaveWrite == (0x70 << 1));
+
   static const uint32_t kAdcDataBytes = 2;
   static const constexpr uint32_t kDataReadDataBytes =
       2 * (kAdcDataBytes + 1); //  2 data bytes + 1 crc
@@ -110,6 +91,42 @@ class Sensor : public I2CDeviceBase {
   std::array<uint8_t, kDataReadDataBytes> data_in_{};
 
  private:
+  enum class MeasurementType : uint16_t {
+    kNormalClockStretchTFirst = 0x7CA2,
+    kNormalClockStretchRHFirst = 0x5C24,
+    kLowPowerClockStretchTFirst = 0x6458,
+    kLowPowerClockStretchRHFirst = 0x44de,
+
+    kNormalNoClockStretchTFirst = 0x7866,
+    kNormalNoClockStretchRHFirst = 0x58e0,
+    kLowPowerNoClockStretchTFirst = 0x609c,
+    kLowPowerNoClockStretchRHFirst = 0x401a,
+  };
+  enum class Command : uint16_t {
+    kSoftwareReset = 0x805D,
+    kReadId = 0xefc8,
+    kSleep = 0xB098,
+    kWakeup = 0x3517,
+    kMeasurementNormalClockStretchTFirst =
+        static_cast<uint16_t>(MeasurementType::kNormalClockStretchTFirst),
+    kMeasurementNormalClockStretchRHFirst =
+        static_cast<uint16_t>(MeasurementType::kNormalClockStretchRHFirst),
+    kMeasurementLowPowerClockStretchTFirst =
+        static_cast<uint16_t>(MeasurementType::kLowPowerClockStretchTFirst),
+    kMeasurementLowPowerClockStretchRHFirst =
+        static_cast<uint16_t>(MeasurementType::kLowPowerClockStretchRHFirst),
+
+    kMeasurementNormalNoClockStretchTFirst =
+        static_cast<uint16_t>(MeasurementType::kNormalNoClockStretchTFirst),
+    kMeasurementNormalNoClockStretchRHFirst =
+        static_cast<uint16_t>(MeasurementType::kNormalNoClockStretchRHFirst),
+    kMeasurementLowPowerNoClockStretchTFirst =
+        static_cast<uint16_t>(MeasurementType::kLowPowerNoClockStretchTFirst),
+    kMeasurementLowPowerNoClockStretchRHFirst =
+        static_cast<uint16_t>(MeasurementType::kLowPowerNoClockStretchRHFirst),
+    kNoCommand = 0x0000,
+  };
+
   void SendCommand(Command command) {
     InsertOperation({I2COperationType::kWrite, kSlaveWrite});
     InsertOperation({I2COperationType::kStart});
@@ -123,15 +140,15 @@ class Sensor : public I2CDeviceBase {
   }
 
   void StartRead(void) {
-    InsertOperation({I2C::OperationType::kWrite, kSlaveRead});
-    InsertOperation({I2C::OperationType::kStart});
+    InsertOperation({I2COperationType::kWrite, kSlaveRead});
+    InsertOperation({I2COperationType::kStart});
 
     for (std::size_t i = 0; i < kDataReadDataBytes; i++) {
-      InsertOperation({I2C::OperationType::kRead});
-      InsertOperation({I2C::OperationType::kContinue});
+      InsertOperation({I2COperationType::kRead});
+      InsertOperation({I2COperationType::kContinue});
     }
 
-    InsertOperation({I2C::OperationType::kStop});
+    InsertOperation({I2COperationType::kStop});
   }
 
   void SetupRead(void) {
@@ -141,7 +158,9 @@ class Sensor : public I2CDeviceBase {
   }
 
   void CleanupRead(void) {
-    std::fill(data_in_.begin(), data_in_.end(), 0);
+    for (auto &i : data_in_) {
+      i = 0;
+    }
   }
 
   void SendReset(void) { SendCommand(Command::kSoftwareReset); }
@@ -218,12 +237,16 @@ class Sensor : public I2CDeviceBase {
 
   uint32_t get_humidity_reading(void) const { return humidity_reading_; }
   uint32_t get_temperature_reading(void) const { return temperature_reading_; }
-  int32_t get_humidity_micro_percent(void) const {
-    return Calculator::ConvertHumidityReadingToMicroPercent(
+
+  template<typename type_t>
+  type_t get_humidity(void) const {
+    return calculate_humidity<type_t> (
         get_humidity_reading());
   }
-  int32_t get_temperature_micro_celsius(void) const {
-    return Calculator::ConvertTemperatureReadingToMicroCelsius(
+
+  template<typename type_t>
+  type_t get_temperature(void) const {
+    return calculate_temperature<type_t> (
         get_temperature_reading());
   }
 
