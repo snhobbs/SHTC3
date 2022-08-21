@@ -67,6 +67,9 @@ class Sensor : public I2CDeviceBase {
    * Reads after a measurement command are data a1, data b1, crc, data a2, data
    * b2, crc MSB Data
    * */
+  public:
+  enum class State { kBootup, kReadingData, kWaiting };
+  
   static const constexpr uint8_t kSlaveAddress = 0x70;
   static const constexpr uint8_t kSlaveRead =
       MakeI2CSlaveReadAddress(kSlaveAddress);
@@ -79,8 +82,7 @@ class Sensor : public I2CDeviceBase {
   static const constexpr uint32_t kDataReadDataBytes =
       2 * (kAdcDataBytes + 1); //  2 data bytes + 1 crc
 
-  enum class State { kBootup, kReadingData, kWaiting };
-
+  private:
   State state_ = State::kBootup;
   uint16_t humidity_reading_ = 0;
   uint16_t temperature_reading_ = 0;
@@ -187,6 +189,12 @@ class Sensor : public I2CDeviceBase {
   }
 
  public:
+  size_t get_bytes_remaining() const {
+    return byte_count_;
+  }
+  State get_state() const {
+    return state_;
+  }
   virtual void Run(void) {
     switch (state_) {
     case (State::kBootup):
