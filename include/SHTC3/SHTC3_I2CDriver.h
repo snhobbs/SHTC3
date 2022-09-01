@@ -36,6 +36,16 @@ static type_t calculate_temperature(const int32_t reading) {
 	return type_t{-45} + (type_t{175} * static_cast<type_t>(reading)) / static_cast<type_t>(kMaxAdcValue);
 }
 
+template<typename type_t>
+static type_t calculate_humidity_scaled(const int32_t reading, const type_t scale=1) {
+	return (scale * type_t{100} * static_cast<type_t>(reading)) / static_cast<type_t>(kMaxAdcValue);
+}
+template<typename type_t>
+static type_t calculate_temperature_scaled(const int32_t reading, const type_t scale=1) {
+	return scale * type_t{-45} + (scale * type_t{175} * static_cast<type_t>(reading)) / static_cast<type_t>(kMaxAdcValue);
+}
+
+
 
 class Calculator {
   static const constexpr int32_t kMicroConversionFactor = static_cast<int32_t>(1e6);
@@ -189,6 +199,8 @@ class Sensor : public I2CDeviceBase {
   }
 
  public:
+  Sensor(I2COperation* buffer, const size_t length) : I2CDeviceBase{buffer, length} {}
+
   size_t get_bytes_remaining() const {
     return byte_count_;
   }
@@ -258,6 +270,5 @@ class Sensor : public I2CDeviceBase {
         get_temperature_reading());
   }
 
-  Sensor(void) {}
 };
 }  // namespace SHTC3
