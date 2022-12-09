@@ -24,24 +24,24 @@ static_assert(crc8(std::array<uint8_t, 1>{0x00}.data(), 1) == 0xAC);
 static_assert(crc8(std::array<uint8_t, 2>{101, 228}.data(), 2) == 166);
 static_assert(crc8(std::array<uint8_t, 2>{63, 203}.data(), 2) == 7);
 
-static const constexpr std::size_t kNumberOfAdcBits = 16;
-static const constexpr std::size_t kMaxAdcValue = (1<<kNumberOfAdcBits) - 1;
+const constexpr std::size_t kNumberOfAdcBits = 16;
+const constexpr std::size_t kMaxAdcValue = (1<<kNumberOfAdcBits) - 1;
 
 template<typename type_t>
-static type_t calculate_humidity(const int32_t reading) {
+inline constexpr type_t calculate_humidity(const uint32_t reading) {
 	return (type_t{100} * static_cast<type_t>(reading)) / static_cast<type_t>(kMaxAdcValue);
 }
 template<typename type_t>
-static type_t calculate_temperature(const int32_t reading) {
+inline constexpr type_t calculate_temperature(const uint32_t reading) {
 	return type_t{-45} + (type_t{175} * static_cast<type_t>(reading)) / static_cast<type_t>(kMaxAdcValue);
 }
 
 template<typename type_t>
-static type_t calculate_humidity_scaled(const int32_t reading, const type_t scale=1) {
+inline constexpr type_t calculate_humidity_scaled(const uint32_t reading, const type_t scale=1) {
 	return (scale * type_t{100} * static_cast<type_t>(reading)) / static_cast<type_t>(kMaxAdcValue);
 }
 template<typename type_t>
-static type_t calculate_temperature_scaled(const int32_t reading, const type_t scale=1) {
+inline constexpr type_t calculate_temperature_scaled(const uint32_t reading, const type_t scale=1) {
 	return scale * type_t{-45} + (scale * type_t{175} * static_cast<type_t>(reading)) / static_cast<type_t>(kMaxAdcValue);
 }
 
@@ -77,7 +77,7 @@ class Sensor : public I2CDeviceBase {
    * Reads after a measurement command are data a1, data b1, crc, data a2, data
    * b2, crc MSB Data
    * */
-  public:
+ public:
   enum class State { kBootup, kReadingData, kWaiting };
   
   static const constexpr uint8_t kSlaveAddress = 0x70;
@@ -139,6 +139,7 @@ class Sensor : public I2CDeviceBase {
     kNoCommand = 0x0000,
   };
 
+#if 0
   void SendCommand(Command command) {
     InsertOperation({I2COperationType::kWrite, kSlaveWrite});
     InsertOperation({I2COperationType::kStart});
@@ -150,6 +151,9 @@ class Sensor : public I2CDeviceBase {
     InsertOperation({I2COperationType::kContinue});
     InsertOperation({I2COperationType::kStop});
   }
+#else
+  void SendCommand(Command command);
+#endif
 
   void StartRead(void) {
     InsertOperation({I2COperationType::kWrite, kSlaveRead});
@@ -207,6 +211,7 @@ class Sensor : public I2CDeviceBase {
   State get_state() const {
     return state_;
   }
+#if 0
   virtual void Run(void) {
     switch (state_) {
     case (State::kBootup):
@@ -236,6 +241,9 @@ class Sensor : public I2CDeviceBase {
       break;
     }
   }
+#else
+  virtual void Run(void);
+#endif
 
   virtual void Reset(void) {
     // SendReset();
