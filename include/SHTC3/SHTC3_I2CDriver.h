@@ -168,15 +168,9 @@ class Sensor : public I2CDeviceBase {
   }
 
   void SetupRead(void) {
-    CleanupRead();
+    std::fill(data_in_.begin(), data_in_.end(), 0);
     byte_count_ = kDataReadDataBytes;
     state_ = State::kReadingData;
-  }
-
-  void CleanupRead(void) {
-    for (auto &i : data_in_) {
-      i = 0;
-    }
   }
 
   void SendReset(void) { SendCommand(Command::kSoftwareReset); }
@@ -248,7 +242,7 @@ class Sensor : public I2CDeviceBase {
   virtual void Reset(void) {
     // SendReset();
     state_ = State::kWaiting;
-    CleanupRead();
+    std::fill(data_in_.begin(), data_in_.end(), 0);
     ResetOperations();
   }
 
