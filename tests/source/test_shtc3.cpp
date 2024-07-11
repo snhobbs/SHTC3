@@ -1,12 +1,14 @@
+#include <SHTC3/SHTC3_I2CDriver.h>
 #include <gtest/gtest.h>
 #include <stdint.h>
+
 #include <array>
 #include <iostream>
 #include <vector>
 
-#include <SHTC3/SHTC3_I2CDriver.h>
 TEST(shtc3, compiles) {
-  SHTC3::Sensor sensor{};
+  std::array<I2COperation, 32> buffer{};
+  SHTC3::Sensor sensor{buffer.data(), buffer.size()};
   ASSERT_EQ(1, 1);
 }
 
@@ -14,7 +16,8 @@ TEST(shtc3, Run_kBootup_to_kReadingData) {
   /*
    * Check that calling run correctly transitions states
    * */
-  SHTC3::Sensor sensor{};
+  std::array<I2COperation, 32> buffer{};
+  SHTC3::Sensor sensor{buffer.data(), buffer.size()};
   ASSERT_EQ(sensor.get_state(), SHTC3::Sensor::State::kBootup);
 
   //  Sent a command
@@ -27,15 +30,16 @@ TEST(shtc3, Run_kBootup_to_kReadingData) {
 }
 
 TEST(shtc3, Run_Pushing_data_transitions_kReadingData_to_kWaiting) {
-  SHTC3::Sensor sensor{};
+  std::array<I2COperation, 32> buffer{};
+  SHTC3::Sensor sensor{buffer.data(), buffer.size()};
   sensor.Run();
   sensor.Run();
   ASSERT_EQ(sensor.get_state(), SHTC3::Sensor::State::kReadingData);
   ASSERT_EQ(sensor.get_bytes_remaining(), sensor.kDataReadDataBytes);
-  for (uint8_t ch=0; ch<sensor.kDataReadDataBytes; ch++) {
+  for (uint8_t ch = 0; ch < sensor.kDataReadDataBytes; ch++) {
     EXPECT_EQ(sensor.get_state(), SHTC3::Sensor::State::kReadingData);
     sensor.PushData('a' + ch);
-    EXPECT_EQ(sensor.get_bytes_remaining(), sensor.kDataReadDataBytes-ch-1);
+    EXPECT_EQ(sensor.get_bytes_remaining(), sensor.kDataReadDataBytes - ch - 1);
   }
   EXPECT_EQ(sensor.get_bytes_remaining(), 0);
 
@@ -46,7 +50,8 @@ TEST(shtc3, Run_Pushing_data_transitions_kReadingData_to_kWaiting) {
 
 TEST(shtc3, Run_CommandLength) {
   const size_t command_length = 7;
-  SHTC3::Sensor sensor{};
+  std::array<I2COperation, 32> buffer{};
+  SHTC3::Sensor sensor{buffer.data(), buffer.size()};
   sensor.Run();
 
   size_t length = 0;
@@ -57,4 +62,3 @@ TEST(shtc3, Run_CommandLength) {
   }
   EXPECT_EQ(length, command_length);
 }
-

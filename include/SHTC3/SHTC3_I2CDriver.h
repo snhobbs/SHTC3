@@ -7,13 +7,14 @@
 #include <I2CBus/I2CInterface.h>
 #include <Utilities/Crc.h>
 #include <Utilities/TypeConversion.h>
+
 #include <algorithm>
 #include <array>
 #include <cstdint>
 
 namespace SHTC3 {
 
-inline constexpr uint8_t crc8(const uint8_t *const buffer,
+inline constexpr uint8_t crc8(const uint8_t* const buffer,
                               const std::size_t data_length) {
   const Utilities::Crc8Setting settings{0x31, 0xff, 0x00, false, false};
   return Utilities::crc_uint8(buffer, data_length, settings);
@@ -25,44 +26,50 @@ static_assert(crc8(std::array<uint8_t, 2>{101, 228}.data(), 2) == 166);
 static_assert(crc8(std::array<uint8_t, 2>{63, 203}.data(), 2) == 7);
 
 const constexpr std::size_t kNumberOfAdcBits = 16;
-const constexpr std::size_t kMaxAdcValue = (1<<kNumberOfAdcBits) - 1;
+const constexpr std::size_t kMaxAdcValue = (1 << kNumberOfAdcBits) - 1;
 
-template<typename type_t>
+template <typename type_t>
 inline constexpr type_t calculate_humidity(const uint32_t reading) {
-	return (type_t{100} * static_cast<type_t>(reading)) / static_cast<type_t>(kMaxAdcValue);
+  return (type_t{100} * static_cast<type_t>(reading)) /
+         static_cast<type_t>(kMaxAdcValue);
 }
-template<typename type_t>
+template <typename type_t>
 inline constexpr type_t calculate_temperature(const uint32_t reading) {
-	return type_t{-45} + (type_t{175} * static_cast<type_t>(reading)) / static_cast<type_t>(kMaxAdcValue);
+  return type_t{-45} + (type_t{175} * static_cast<type_t>(reading)) /
+                           static_cast<type_t>(kMaxAdcValue);
 }
 
-template<typename type_t>
-inline constexpr type_t calculate_humidity_scaled(const uint32_t reading, const type_t scale=1) {
-	return (scale * type_t{100} * static_cast<type_t>(reading)) / static_cast<type_t>(kMaxAdcValue);
+template <typename type_t>
+inline constexpr type_t calculate_humidity_scaled(const uint32_t reading,
+                                                  const type_t scale = 1) {
+  return (scale * type_t{100} * static_cast<type_t>(reading)) /
+         static_cast<type_t>(kMaxAdcValue);
 }
-template<typename type_t>
-inline constexpr type_t calculate_temperature_scaled(const uint32_t reading, const type_t scale=1) {
-	return scale * type_t{-45} + (scale * type_t{175} * static_cast<type_t>(reading)) / static_cast<type_t>(kMaxAdcValue);
+template <typename type_t>
+inline constexpr type_t calculate_temperature_scaled(const uint32_t reading,
+                                                     const type_t scale = 1) {
+  return scale * type_t{-45} +
+         (scale * type_t{175} * static_cast<type_t>(reading)) /
+             static_cast<type_t>(kMaxAdcValue);
 }
-
-
 
 class Calculator {
-  static const constexpr int32_t kMicroConversionFactor = static_cast<int32_t>(1e6);
+  static const constexpr int32_t kMicroConversionFactor =
+      static_cast<int32_t>(1e6);
 
  public:
 #if 0
   static int32_t
   ConvertHumidityReadingToMicroPercent(const int32_t humidity_reading) {
-	const constexpr auto conversion_factor = static_cast<int32_t>(Utilities::round(100 * static_cast<double>(kMicroConversionFactor) / static_cast<double>(kMaxAdcValue)));
-	static_assert(conversion_factor == 1526);
+  const constexpr auto conversion_factor = static_cast<int32_t>(Utilities::round(100 * static_cast<double>(kMicroConversionFactor) / static_cast<double>(kMaxAdcValue)));
+  static_assert(conversion_factor == 1526);
     return (conversion_factor * humidity_reading);
   }
   static int32_t
   ConvertTemperatureReadingToMicroCelsius(const int32_t temp_reading) {
-	const constexpr auto conversion_factor = static_cast<int32_t>(Utilities::round(175 * static_cast<double>(kMicroConversionFactor)) / static_cast<double>(kMaxAdcValue));
-	static_assert(conversion_factor == 2670);
-	return -45 * kMicroConversionFactor + conversion_factor * temp_reading;
+  const constexpr auto conversion_factor = static_cast<int32_t>(Utilities::round(175 * static_cast<double>(kMicroConversionFactor)) / static_cast<double>(kMaxAdcValue));
+  static_assert(conversion_factor == 2670);
+  return -45 * kMicroConversionFactor + conversion_factor * temp_reading;
   }
 #endif
 };
@@ -79,7 +86,7 @@ class Sensor : public I2CDeviceBase {
    * */
  public:
   enum class State { kBootup, kReadingData, kWaiting };
-  
+
   static const constexpr uint8_t kSlaveAddress = 0x70;
   static const constexpr uint8_t kSlaveRead =
       MakeI2CSlaveReadAddress(kSlaveAddress);
@@ -90,9 +97,9 @@ class Sensor : public I2CDeviceBase {
 
   static const uint32_t kAdcDataBytes = 2;
   static const constexpr uint32_t kDataReadDataBytes =
-      2 * (kAdcDataBytes + 1); //  2 data bytes + 1 crc
+      2 * (kAdcDataBytes + 1);  //  2 data bytes + 1 crc
 
-  private:
+ private:
   State state_ = State::kBootup;
   uint16_t humidity_reading_ = 0;
   uint16_t temperature_reading_ = 0;
@@ -139,7 +146,6 @@ class Sensor : public I2CDeviceBase {
     kNoCommand = 0x0000,
   };
 
-#if 0
   void SendCommand(Command command) {
     InsertOperation({I2COperationType::kWrite, kSlaveWrite});
     InsertOperation({I2COperationType::kStart});
@@ -151,9 +157,6 @@ class Sensor : public I2CDeviceBase {
     InsertOperation({I2COperationType::kContinue});
     InsertOperation({I2COperationType::kStop});
   }
-#else
-  void SendCommand(Command command);
-#endif
 
   void StartRead(void) {
     InsertOperation({I2COperationType::kWrite, kSlaveRead});
@@ -197,47 +200,40 @@ class Sensor : public I2CDeviceBase {
   }
 
  public:
-  Sensor(I2COperation* buffer, const size_t length) : I2CDeviceBase{buffer, length} {}
+  Sensor(I2COperation* buffer, const size_t length)
+      : I2CDeviceBase{buffer, length} {}
 
-  size_t get_bytes_remaining() const {
-    return byte_count_;
-  }
-  State get_state() const {
-    return state_;
-  }
-#if 0
+  size_t get_bytes_remaining() const { return byte_count_; }
+  State get_state() const { return state_; }
+
   virtual void Run(void) {
     switch (state_) {
-    case (State::kBootup):
-      //  Reset Device
-      Reset();
-      SendCommand(Command::kWakeup);
-      state_ = State::kWaiting;
-      break;
-    case (State::kWaiting):
-      //  Start read
-      SetupRead();
-      SendCommand(Command::kWakeup);
-      // SendCommand(Command::kMeasurementLowPowerNoClockStretchTFirst);
-      SendCommand(Command::kMeasurementLowPowerClockStretchTFirst);
-      StartRead();
-      state_ = State::kReadingData;
-      break;
-    case (State::kReadingData):
-      //  Check for finished
-      if (byte_count_ == 0) {
-        ProcessData();
+      case (State::kBootup):
+        //  Reset Device
+        Reset();
+        SendCommand(Command::kWakeup);
         state_ = State::kWaiting;
-      }
-      break;
-    default:
-      assert(0);
-      break;
+        break;
+      case (State::kWaiting):
+        //  Start read
+        SetupRead();
+        SendCommand(Command::kWakeup);
+        SendCommand(Command::kMeasurementLowPowerClockStretchTFirst);
+        StartRead();
+        state_ = State::kReadingData;
+        break;
+      case (State::kReadingData):
+        //  Check for finished
+        if (byte_count_ == 0) {
+          ProcessData();
+          state_ = State::kWaiting;
+        }
+        break;
+      default:
+        assert(0);
+        break;
     }
   }
-#else
-  virtual void Run(void);
-#endif
 
   virtual void Reset(void) {
     // SendReset();
@@ -247,7 +243,7 @@ class Sensor : public I2CDeviceBase {
   }
 
   virtual void PushData(uint8_t data) {
-    if ((state_ == State::kReadingData) && (byte_count_ > 0)) { //  valid state
+    if ((state_ == State::kReadingData) && (byte_count_ > 0)) {  //  valid state
       data_in_[data_in_.size() - byte_count_] = data;
       byte_count_--;
     } else {
@@ -260,17 +256,14 @@ class Sensor : public I2CDeviceBase {
   uint32_t get_humidity_reading(void) const { return humidity_reading_; }
   uint32_t get_temperature_reading(void) const { return temperature_reading_; }
 
-  template<typename type_t>
+  template <typename type_t>
   type_t get_humidity(void) const {
-    return calculate_humidity<type_t> (
-        get_humidity_reading());
+    return calculate_humidity<type_t>(get_humidity_reading());
   }
 
-  template<typename type_t>
+  template <typename type_t>
   type_t get_temperature(void) const {
-    return calculate_temperature<type_t> (
-        get_temperature_reading());
+    return calculate_temperature<type_t>(get_temperature_reading());
   }
-
 };
 }  // namespace SHTC3
